@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 import datetime
+import json
 import re
+import requests
 
 from launchpadlib.launchpad import Launchpad
 launchpad = Launchpad.login_with('openstack-bugs', 'production')
@@ -25,6 +27,21 @@ def get_reviews_from_bug(bug):
         reviews |= set(RE_LINK.findall(comment.content))
     return reviews
 
+
+def get_review_status(review_number):
+    """Return status of a given review number."""
+    r = requests.get("https://review.openstack.org:443/changes/%s"
+                     % review_number)
+    # strip off first few chars because 'the JSON response body starts with a
+    # magic prefix line that must be stripped before feeding the rest of the
+    # response body to a JSON parser'
+    # https://review.openstack.org/Documentation/rest-api.html
+    status = None
+    try:
+        status = json.loads(r.text[4:])['status']
+    except ValueError:
+        status = r.text
+    return status
 
 class LPBug(object):
     def __init__(self, task, project=PROJECT):
@@ -85,20 +102,36 @@ for task in project.searchTasks(status=LPSTATUS, importance=LPIMPORTANCE,
         order_by='date_last_updated'):
     bug = LPBug(task)
     try:
-        print bug
         if bug.last_updated > 180:
             print "WOULD CLOSE: Last Updated: %s" % bug.last_updated
             bug.add_comment(message)
             bug.status = "Invalid"
+        print bug
     except Exception as e:
         print "ERROR: couldn't mark %s as invalid %s" % (bug, e)
 
-    if bug.assignee and not bug.reviews:
-        print "Unassigning the bug"
-        bug.add_comment("No reviews found in this bug, unassigning. Please add a comment with active reviews before assigning an individual, or tag the bug in the gerrit review, which will do that automatically")
-        bug.assignee = None
-        if bug.status == "In Progress":
-            bug.status = "New"
+    if bug.assignee:
+        if not bug.reviews:
+            print "Unassigning the bug"
+            bug.add_comment("No reviews found in this bug, unassigning. Please add a comment with active reviews before assigning an individual, or tag the bug in the gerrit review, which will do that automatically. We try not to assign bugs without patches as that discourages other folks from looking into bugs.")
+            bug.assignee = None
+            if bug.status == "In Progress":
+                bug.status = "New"
+        else:
+            open_reviews = False
+            for r in bug.reviews:
+                status = get_review_status(r)
+                print "Status for %s is %s" % (r, status)
+                if status == "NEW":
+                    open_reviews = True
+            if open_reviews is False:
+                print "Unassigning the bug"
+                bug.add_comment("No open reviews found in this bug, unassigning. Please add a comment with active reviews before assigning an individual, or tag the bug in the gerrit review, which will do that automatically. We try not to assign bugs without patches as that discourages other folks from looking into bugs.")
+                bug.assignee = None
+                if bug.status == "In Progress":
+                    bug.status = "New"
+
+            print "Open Reviews: %s" % open_reviews
 
 
 
