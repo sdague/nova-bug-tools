@@ -1,0 +1,3 @@
+* Writing in comments
+
+bug.newMessage(content="Testing comments")
