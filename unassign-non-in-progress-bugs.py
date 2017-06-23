@@ -18,16 +18,8 @@ LPIMPORTANCE = ('Critical', 'High', 'Medium', 'Undecided', 'Low', 'Wishlist')
 
 ALL_STATUS = ["New",
               "Incomplete",
-              "Opinion",
-              "Invalid",
-              "Won't Fix",
-              "Expired",
               "Confirmed",
-              "Triaged",
-              "In Progress",
-              "Fix Committed",
-              "Fix Released"]
-
+              "Triaged"]
 
 
 def delta(date_value):
@@ -69,10 +61,10 @@ def open_reviews(review_nums):
 
 
 NO_REVIEWS = """
-There are no currently open reviews on this bug, changing
-the status back to the previous state and unassigning. If
-there are active reviews related to this bug, please include
-links in comments.
+This bug is not In Progress, and has no open patches in the
+comments, so it is being unassigned. Please take ownership of bugs
+if you have a patch to submit for them to ensure that
+people are not discouraged from looking at these bugs.
 """
 
 
@@ -153,29 +145,30 @@ def main():
     project = launchpad.projects[args.project]
     count = 0
     fixed = 0
-    for task in project.searchTasks(status="In Progress",
+    inprog = 0
+    for task in project.searchTasks(status=ALL_STATUS,
                                 search_text=args.search,
                                 order_by='date_last_updated'):
         try:
             count += 1
+            inprog
             bug = LPBug(task, launchpad, project=args.project)
-            if bug.status == "In Progress":
+            print(bug)
+            if bug.assignee:
                 reviews = open_reviews(bug.reviews)
-                print(bug)
-                if len(reviews) > 0:
-                    print("... found open reviews")
-                else:
-                    print("... no open reviews, should change status")
-                    fixed += 1
-                    last_status = bug.last_status
+                if reviews:
+                    inprog += 1
                     if not args.dryrun:
-                        bug.status = last_status
-                        bug.add_comment(NO_REVIEWS)
+                        bug.status = "In Progress"
+                    print("... this bug is marked in progress")
+                else:
+                    fixed += 1
+                    if not args.dryrun:
                         bug.assignee = None
-                    print("... changed to %s" % last_status)
+                    print("... bug is assigned but should not be!")
         except Exception as e:
             print "Exception: %s" % e
-    print "Total found: %s, would fix %s" % (count, fixed)
+    print "Total found: %s, would fix %s, in prog %s" % (count, fixed, inprog)
 
 
 if __name__ == "__main__":
