@@ -142,10 +142,12 @@ def parse_args():
     parser.add_argument('--search',
                         help='Custom search terms for bug')
     parser.add_argument('--dryrun', action="store_true", default=False)
+    parser.add_argument('--verbose', action="store_true", default=False)
     return parser.parse_args()
 
 
 def version_normalize(version):
+    """A set of normalizations found based on the info."""
     if not version:
         return
 
@@ -190,6 +192,8 @@ def discover_stack_version(project, desc):
         "(^|\n)%s(\s*version)?\s*:(?P<version>.*)" % project,  # nova version
         "(^|\n)openstack-%s-common-(?P<version>.*)" % project,  # rhel version
         "(^|\n)openstack-%s-compute-(?P<version>.*)" % project,  # rhel version
+        r"\b%s-common\s+\d\:(?P<version>.*)" % project,  # ubuntu dpkg
+                                                         # -l version
         r"(?P<version>\b(%s)\b)" % ("|".join(known_versions)),  # keywords
     )
     found_version = None
@@ -218,14 +222,13 @@ def main():
             print(bug)
             # print bug.description
             version = discover_stack_version(args.project, bug.description)
-            # if version:
-            #     print("!!!!! Version Found: %s" % version)
-            # print ("\n\n")
+            if args.verbose:
+                print(bug.description)
 
             tags = list(bug.bug.tags)
             if version is not None:
                 new_tag = "openstack-version.%s" % version
-                print "Found tags: %s" % tags
+                print("Found tags: %s" % tags)
                 if new_tag not in tags:
                     print("Adding %s to tags" % new_tag)
                     if not args.dryrun:
@@ -233,10 +236,10 @@ def main():
                         bug.bug.tags = tags
                         print(bug.bug.tags)
                         bug.bug.lp_save()
-                        # bug.add_comment(
-                        #     "Automatically discovered version %s in description. "
-                        #     "If this is incorrect, please update the description "
-                        #     "to include '%s version: ...'" % (version, args.project))
+                        bug.add_comment(
+                            "Automatically discovered version %s in description. "
+                            "If this is incorrect, please update the description "
+                            "to include '%s version: ...'" % (version, args.project))
             if version is None and bug.age < 14:
                 if bug.status != "Incomplete":
                     print("Marking bug incompleted as no version specified")
@@ -250,6 +253,9 @@ def main():
                             "required, marking as Incomplete. Please update the "
                             "bug description to include '%s version: ... '." %
                             (args.project))
+            if args.verbose:
+                # make it easier to sort out bugs
+                print("\n\n")
 
 
 
