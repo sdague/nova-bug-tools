@@ -7,21 +7,11 @@ from openstack_bugs.messages import DISCOVERED_STACK_VERS, NO_STACK_VERS_FOUND
 
 from launchpadlib.launchpad import Launchpad
 
-LPSTATUS = ('New', 'Confirmed', 'Triaged', 'In Progress', 'Incomplete')
-LPIMPORTANCE = ('Critical', 'High', 'Medium', 'Undecided', 'Low', 'Wishlist')
-
 ALL_STATUS = ["New",
               "In Progress",
               "Incomplete",
               "Confirmed",
               "Triaged"]
-
-NO_REVIEWS = """
-This bug is not In Progress, and has no open patches in the
-comments, so it is being unassigned. Please take ownership of bugs
-if you have a patch to submit for them to ensure that
-people are not discouraged from looking at these bugs.
-"""
 
 
 def parse_args():
@@ -46,7 +36,7 @@ def main():
     project = launchpad.projects[args.project]
     count = 0
     fixed = 0
-    inprog = 0
+    incomp = 0
     for task in project.searchTasks(status=ALL_STATUS,
                                 search_text=args.search,
                                 order_by='date_last_updated'):
@@ -63,6 +53,7 @@ def main():
             if version is not None:
                 new_tag = "openstack-version.%s" % version
                 print("Found tags: %s" % tags)
+                fixed += 1
                 if new_tag not in tags:
                     print("Adding %s to tags" % new_tag)
                     if not args.dryrun:
@@ -72,6 +63,7 @@ def main():
             if version is None and args.age and bug.age <= args.age:
                 if (bug.status != "Incomplete" and
                     "needs.openstack-version" not in bug.tags):
+                    incomp += 1
                     print("Marking bug incomplete - no openstack version specified")
                     if not args.dryrun:
                         if bug.add_tag("needs.openstack-version"):
@@ -84,7 +76,7 @@ def main():
 
         except Exception as e:
             print "Exception: %s" % e
-    print "Total found: %s, would fix %s, in prog %s" % (count, fixed, inprog)
+    print "Total found: %s, tagging %s, incomplete %s" % (count, fixed, incomp)
 
 
 if __name__ == "__main__":
