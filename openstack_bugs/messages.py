@@ -21,3 +21,9 @@ NO_REVIEWS = (
     "the status back to the previous state and unassigning. If "
     "there are active reviews related to this bug, please include "
     "links in comments. ")
+
+INACTIVE_BUG = (
+    "This bug was last updated over %s days ago, as %s "
+    "is a fast moving project and we'd like to get the tracker down to "
+    "currently actionable bugs, this is getting marked as Invalid. If the "
+    "issue still exists, please feel free to reopen it.")
