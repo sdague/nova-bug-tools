@@ -33,7 +33,7 @@ def main():
     inprog = 0
     for task in project.searchTasks(status=ALL_STATUS,
                                 search_text=args.search,
-                                order_by='date_last_updated'):
+                                order_by='-date_last_updated'):
         try:
             count += 1
             inprog

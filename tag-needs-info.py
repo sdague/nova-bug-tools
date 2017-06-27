@@ -46,10 +46,15 @@ def main():
             print(bug)
             version = openstack_bugs.discover_stack_version(
                 args.project, bug.description)
+            opsys = openstack_bugs.discover_os_version(bug.description)
             if args.verbose:
                 print(bug.description)
 
             tags = bug.tags
+            if opsys is not None:
+                new_tag = "opsys-type.%s" % opsys
+                print("Found operating system: %s" % new_tag)
+
             if version is not None:
                 new_tag = "openstack-version.%s" % version
                 print("Found tags: %s" % tags)

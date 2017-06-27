@@ -4,7 +4,7 @@ import json
 import requests
 
 
-RE_LINK = re.compile(' https://review.openstack.org/(\d+)')
+RE_LINK = re.compile('https://review.openstack.org/\#?/?c?/?(\d+)')
 
 
 def delta(date_value):
@@ -41,6 +41,7 @@ def open_reviews(review_nums):
     openrevs = []
     for review in review_nums:
         status = get_review_status(review)
+        print "Status: %s => %s" % (review, status)
         if status == "NEW":
             openrevs.append(review)
     return openrevs
@@ -130,6 +131,28 @@ def discover_stack_version(project, desc):
             if found_version:
                 break
     return version_normalize(found_version)
+
+
+def discover_os_version(desc):
+    """Discover operating system version heuristically"""
+
+    known_distros = ("ubuntu", "debian", "red\s*hat", "centos",
+                     "fedora", "(open)?suse")
+    found_version = None
+
+    # the ideal version is OS Version: ....
+    matches = (
+        "(^|\n)(os|linux)\s*version\s*:(?P<version>.*)",  # ideal version
+        r"(?P<version>\b(%s))" % ("|".join(known_distros)),  # keywords
+    )
+
+    for attempt in matches:
+        m = re.search(attempt, desc, re.IGNORECASE)
+        if m:
+            found_version = m.group('version')
+            if found_version:
+                break
+    return found_version
 
 
 class LPBug(object):

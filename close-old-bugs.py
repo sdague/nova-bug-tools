@@ -36,7 +36,7 @@ def main():
                                     search_text=args.search,
                                     omit_duplicates=True,
                                     order_by='date_last_updated'):
-        bug = openstack_bugs.LPBug(task, args.project)
+        bug = openstack_bugs.LPBug(task, launchpad, args.project)
         count += 1
         try:
             if bug.last_updated > 180:
