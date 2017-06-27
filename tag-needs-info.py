@@ -152,6 +152,17 @@ def version_normalize(version):
         return
 
     version = version.rstrip().lstrip()
+    # split off some very standard compound versions markers
+    version = version.split(" ")[0].split("(")[0]
+    # this is a url and not even a git sha
+    if len(version) > 40:
+        return None
+
+    # master is not useful, given that it requires understanding point
+    # in time of the bug. Maybe some day we can manage to make this
+    # detect when it was, and bucket it. That's a whole different beast.
+    if version.lower() == "master":
+        return None
 
     mapping = {
         "2013.1": "grizzly",
@@ -223,7 +234,7 @@ def main():
             # print bug.description
             version = discover_stack_version(args.project, bug.description)
             if args.verbose:
-                print(bug.description)
+                print(bug.description.encode("utf-8"))
 
             tags = list(bug.bug.tags)
             if version is not None:
