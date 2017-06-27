@@ -1,131 +1,16 @@
 #!/usr/bin/env python
 
 import argparse
-import datetime
-import json
-import re
-import requests
-import sys
 
 from launchpadlib.launchpad import Launchpad
-launchpad = Launchpad.login_with('openstack-bugs', 'production')
 
-RE_LINK = re.compile(' https://review.openstack.org/(\d+)')
-
-
-LPSTATUS = ('New', 'Confirmed', 'Triaged', 'In Progress', 'Incomplete')
-LPIMPORTANCE = ('Critical', 'High', 'Medium', 'Undecided', 'Low', 'Wishlist')
+import openstack_bugs
+from openstack_bugs.messages import NO_REVIEWS
 
 ALL_STATUS = ["New",
               "Incomplete",
               "Confirmed",
               "Triaged"]
-
-
-def delta(date_value):
-    delta = datetime.date.today() - date_value.date()
-    return delta.days
-
-
-def get_reviews_from_bug(bug):
-    """Return a list of gerrit reviews extracted from the bug's comments."""
-    reviews = set()
-    for comment in bug.messages:
-        reviews |= set(RE_LINK.findall(comment.content))
-    return reviews
-
-
-def get_review_status(review_number):
-    """Return status of a given review number."""
-    r = requests.get("https://review.openstack.org:443/changes/%s"
-                     % review_number)
-    # strip off first few chars because 'the JSON response body starts with a
-    # magic prefix line that must be stripped before feeding the rest of the
-    # response body to a JSON parser'
-    # https://review.openstack.org/Documentation/rest-api.html
-    status = None
-    try:
-        status = json.loads(r.text[4:])['status']
-    except ValueError:
-        status = r.text
-    return status
-
-
-def open_reviews(review_nums):
-    openrevs = []
-    for review in review_nums:
-        status = get_review_status(review)
-        if status == "NEW":
-            openrevs.append(review)
-    return openrevs
-
-
-NO_REVIEWS = """
-This bug is not In Progress, and has no open patches in the
-comments, so it is being unassigned. Please take ownership of bugs
-if you have a patch to submit for them to ensure that
-people are not discouraged from looking at these bugs.
-"""
-
-
-class LPBug(object):
-    def __init__(self, task, lp, project=None):
-        self._project = project
-        self._activity = None
-        self.bug = lp.load(task.bug_link)
-        self.task = None
-        for task in self.bug.bug_tasks:
-            if task.bug_target_name == project:
-                self.task = task
-
-    @property
-    def title(self):
-        return self.bug.title
-
-    @property
-    def status(self):
-        return self.task.status
-
-    @status.setter
-    def status(self, value):
-        self.task.status = value
-        self.task.lp_save()
-
-    def add_comment(self, msg):
-        self.bug.newMessage(content=msg)
-
-    @property
-    def age(self):
-        return delta(self.bug.date_created)
-
-    @property
-    def last_updated(self):
-        return delta(self.bug.date_last_updated)
-
-    @property
-    def assignee(self):
-        return self.task.assignee
-
-    @assignee.setter
-    def assignee(self, name):
-        self.task.assignee = name
-        self.task.lp_save()
-
-    @property
-    def reviews(self):
-        return get_reviews_from_bug(self.bug)
-
-    @property
-    def last_status(self):
-        last = "New"
-        for a in self.bug.activity:
-            if a.whatchanged == ("%s: status" % self._project):
-                last = a.oldvalue
-        return last
-
-    def __repr__(self):
-        return '<LPBug title="%s" status="%s" link="%s">' % \
-            (unicode(self.title), self.status, self.task.web_link)
 
 
 def parse_args():
@@ -152,10 +37,10 @@ def main():
         try:
             count += 1
             inprog
-            bug = LPBug(task, launchpad, project=args.project)
+            bug = openstack_bugs.LPBug(task, launchpad, project=args.project)
             print(bug)
             if bug.assignee:
-                reviews = open_reviews(bug.reviews)
+                reviews = openstack_bugs.open_reviews(bug.reviews)
                 if reviews:
                     inprog += 1
                     if not args.dryrun:
@@ -165,6 +50,7 @@ def main():
                     fixed += 1
                     if not args.dryrun:
                         bug.assignee = None
+                        bug.add_comment(NO_REVIEWS)
                     print("... bug is assigned but should not be!")
         except Exception as e:
             print "Exception: %s" % e
