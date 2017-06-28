@@ -25,9 +25,11 @@ def main():
     project = launchpad.projects[args.project]
     count = 0
     fixed = 0
-    for task in project.searchTasks(status="In Progress",
-                                search_text=args.search,
-                                order_by='date_last_updated'):
+    for task in project.searchTasks(
+            status="In Progress",
+            importance=openstack_bugs.ALL_STATUS,
+            search_text=args.search,
+            order_by='date_last_updated'):
         try:
             count += 1
             bug = openstack_bugs.LPBug(task, launchpad, project=args.project)

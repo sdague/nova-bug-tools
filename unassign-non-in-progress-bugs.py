@@ -39,19 +39,24 @@ def main():
             inprog
             bug = openstack_bugs.LPBug(task, launchpad, project=args.project)
             print(bug)
-            if bug.assignee:
-                reviews = openstack_bugs.open_reviews(bug.reviews)
-                if reviews:
-                    inprog += 1
-                    if not args.dryrun:
-                        bug.status = "In Progress"
-                    print("... this bug is marked in progress")
-                else:
-                    fixed += 1
-                    if not args.dryrun:
-                        bug.assignee = None
-                        bug.add_comment(NO_REVIEWS)
-                    print("... bug is assigned but should not be!")
+            reviews = openstack_bugs.open_reviews(bug.reviews)
+            if reviews and bug.assignee:
+                inprog += 1
+                if not args.dryrun:
+                    bug.status = "In Progress"
+                print("... this bug is marked in progress")
+            elif reviews:
+                inprog += 1
+                if not args.dryrun:
+                    bug.revert_to_last_assignee()
+                    bug.status = "In Progress"
+                print("... open reviews, reverting to last assignment")
+            elif bug.assignee:
+                fixed += 1
+                if not args.dryrun:
+                    bug.assignee = None
+                    bug.add_comment(NO_REVIEWS)
+                print("... bug is assigned but should not be!")
         except Exception as e:
             print "Exception: %s" % e
     print "Total found: %s, would fix %s, in prog %s" % (count, fixed, inprog)

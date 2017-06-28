@@ -4,6 +4,7 @@ import json
 import requests
 
 
+ALL_STATUS = ('Critical', 'High', 'Medium', 'Undecided', 'Low', 'Wishlist')
 RE_LINK = re.compile('https://review.openstack.org/\#?/?c?/?(\d+)')
 
 
@@ -238,6 +239,26 @@ class LPBug(object):
             if a.whatchanged == ("%s: status" % self._project):
                 last = a.oldvalue
         return last
+
+    def revert_to_last_status(self):
+        self.status = self.last_status
+
+    def revert_to_last_assignee(self):
+        last = None
+        for a in self.bug.activity:
+            if a.whatchanged == ("%s: assignee" % self._project):
+                if a.oldvalue is not None:
+                    last = a.oldvalue
+
+        if last is None:
+            return False
+
+        # launchpad is a little rediculous that they give you activity
+        # in a format that you can't actively work with. So
+        # heuristically build the correct url to assigne things.
+        person = last.split("(")[1].split(")")[0]
+        person_url = "https://api.launchpad.net/1.0/~" + person
+        self.assignee = person_url
 
     def __repr__(self):
         return '<LPBug title="%s" status="%s" link="%s">' % \
