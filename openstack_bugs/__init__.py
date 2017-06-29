@@ -160,7 +160,10 @@ class LPBug(object):
     def __init__(self, task, lp, project=None):
         self._project = project
         self._activity = None
-        self.bug = lp.load(task.bug_link)
+        if type(task) in (str, unicode):
+            self.bug = lp.load(task)
+        else:
+            self.bug = lp.load(task.bug_link)
         self.task = None
         for task in self.bug.bug_tasks:
             if task.bug_target_name == project:
